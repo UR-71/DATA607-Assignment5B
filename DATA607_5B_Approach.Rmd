@@ -1,0 +1,62 @@
+---
+title: '5B Approach: Chess Elo Calculations'
+author: "Ummay Rukiya"
+date: "2026-10-01"
+output: html_document
+---
+
+---
+title: "Assignment 5B Approach: Chess Elo Calculations"
+author: "Ummay Rukiya"
+date: "2026-10-01"
+output: html_document
+---
+
+## Overview
+
+For this assignment, I plan to use the chess tournament data from Project 1 to calculate how many points each player was expected to earn based on the difference between their rating and the ratings of their opponents. I will then compare each player’s expected score with their actual tournament score to identify the five players who overperformed the most and the five who underperformed the most.
+
+## Data Source
+
+I will load the original tournament text file from its raw GitHub URL so the analysis can be reproduced without using a file stored only on my computer. I will reuse the data-cleaning process from Project 1 to extract each player’s pairing number, name, actual score, pre-tournament rating, and opponent numbers.
+
+The opponent numbers will be matched with the pairing numbers in the player table so that every player can be connected to the pre-tournament rating of each opponent they faced.
+
+## Elo Expected-Score Formula
+
+I plan to use the standard Elo expected-score formula presented in *The Elo Rating System for Chess and Beyond*:
+
+\[
+E_A = \frac{1}{1 + 10^{(R_B-R_A)/400}}
+\]
+
+In this formula, \(R_A\) is the player’s rating, \(R_B\) is the opponent’s rating, and \(E_A\) is the number of points the player is expected to earn from that game. A player facing someone with the same rating would have an expected score of 0.5 for that game. A player with a higher rating would be expected to earn more than 0.5, while a lower-rated player would be expected to earn less.
+
+## Planned Approach
+
+First, I will connect each player with the ratings of all completed opponents listed in the tournament data. Round entries that do not contain an opponent number, such as byes or unplayed rounds, will not be treated as games against another player.
+
+Next, I will apply the Elo formula to every player-opponent matchup. I will add the individual expected scores together to calculate each player’s expected tournament score.
+
+I will then calculate the performance difference using:
+
+**Performance difference = Actual score − Expected score**
+
+A positive difference will mean that the player earned more points than expected, while a negative difference will mean that the player earned fewer points than expected. Finally, I will sort the results from highest to lowest to identify the five greatest overperformers and from lowest to highest to identify the five greatest underperformers.
+
+## Validation
+
+I will check that all opponent numbers match valid players in the tournament and that the correct rating is assigned to every matchup. I will also verify that the expected scores for two opponents in the same game add up to approximately 1. After calculating the final results, I will display each selected player’s name, rating, actual score, expected score, and performance difference.
+
+## Anticipated Challenges
+
+The main challenge may be connecting each opponent number to the correct player rating without changing the order of the records. Players also completed different numbers of rated games because some round entries represent byes or unplayed rounds. I will need to make sure these entries are not incorrectly treated as opponents. I will also check for missing or invalid ratings before applying the formula.
+
+## Expected Outcome
+
+The final results will show which players performed better or worse than their ratings predicted. This comparison will provide more context than tournament points alone because it considers the strength of each player’s opponents.
+
+## Formula Source
+
+Primer. (2019, February 15). *The Elo rating system for chess and beyond* [Video]. YouTube. https://www.youtube.com/watch?v=AsYfbmp0To0
+
