@@ -1,0 +1,257 @@
+---
+title: 'Assignment 5B: Chess Elo Calculations'
+author: "Ummay Rukiya"
+date: "2026-10-02"
+output: html_document
+---
+
+## Overview
+
+For this assignment, I will use the chess tournament data from Project 1 to compare each player’s actual score with the score predicted by the Elo rating system. I will calculate the expected result of every game using the rating difference between each player and their opponent. After adding each player’s expected results, I will identify the five players who performed furthest above expectations and the five who performed furthest below expectations.
+
+## Loading the Tournament Data
+
+I loaded the original tournament text file directly from my Project 1 GitHub repository. Using the raw GitHub file makes the analysis reproducible without requiring a file stored on my computer.
+
+```{r load-data}
+data_url <- paste0(
+  "https://raw.githubusercontent.com/UR-71/",
+  "DATA607-Project1/main/tournamentinfo.txt"
+)
+
+tournament_lines <- readLines(
+  data_url,
+  warn = FALSE
+)
+
+length(tournament_lines)
+```
+## Extracting Players and Opponents
+
+Each player’s tournament record appears across two lines. I identified the player lines and rating lines, separated the fields at the vertical bars, and extracted each player’s number, name, actual score, pre-tournament rating, and opponents.
+
+```{r extract-records}
+player_lines <- tournament_lines[
+  grep("^\\s*[0-9]+\\s*\\|", tournament_lines)
+]
+
+rating_lines <- tournament_lines[
+  grep("^\\s*[A-Z]{2}\\s*\\|", tournament_lines)
+]
+
+split_record <- function(record) {
+  trimws(strsplit(record, "|", fixed = TRUE)[[1]])
+}
+
+player_fields <- lapply(player_lines, split_record)
+rating_fields <- lapply(rating_lines, split_record)
+
+pair_number <- as.integer(
+  sapply(player_fields, function(record) record[1])
+)
+
+player_name <- sapply(
+  player_fields,
+  function(record) record[2]
+)
+
+actual_score <- as.numeric(
+  sapply(player_fields, function(record) record[3])
+)
+
+rating_text <- sapply(
+  rating_fields,
+  function(record) record[2]
+)
+
+pre_rating <- as.integer(
+  sub(".*R:\\s*([0-9]+).*", "\\1", rating_text)
+)
+
+round_results <- lapply(
+  player_fields,
+  function(record) record[4:10]
+)
+
+extract_opponents <- function(rounds) {
+  completed_games <- grepl(
+    "^[WLD]\\s*[0-9]+",
+    rounds
+  )
+
+  opponent_ids <- sub(
+    "^[WLD]\\s*([0-9]+).*$",
+    "\\1",
+    rounds[completed_games]
+  )
+
+  as.integer(opponent_ids)
+}
+
+opponent_numbers <- lapply(
+  round_results,
+  extract_opponents
+)
+
+length(player_name)
+length(opponent_numbers)
+```
+
+## Calculating Expected Scores
+
+I used the Elo expected-score formula shown in the reference video. For each completed game, I compared the player’s pre-tournament rating with the opponent’s pre-tournament rating. I then added the individual game expectations to calculate each player’s total expected score.
+
+The formula is:
+
+**Expected score = 1 / (1 + 10^((opponent rating - player rating) / 400))**
+
+Source: singingbanana. (2019, February 15). *The Elo Rating System for Chess and Beyond* [Video]. YouTube. https://www.youtube.com/watch?v=AsYfbmp0To0
+
+```{r calculate-expected-scores}
+rating_lookup <- setNames(
+  pre_rating,
+  pair_number
+)
+
+calculate_expected_score <- function(
+    player_rating,
+    opponent_ids
+) {
+  opponent_ratings <- rating_lookup[
+    as.character(opponent_ids)
+  ]
+
+  game_expectations <- 1 / (
+    1 + 10^(
+      (opponent_ratings - player_rating) / 400
+    )
+  )
+
+  sum(game_expectations)
+}
+
+expected_score <- mapply(
+  calculate_expected_score,
+  player_rating = pre_rating,
+  opponent_ids = opponent_numbers
+)
+
+performance_difference <- actual_score - expected_score
+
+elo_results <- data.frame(
+  pair_number,
+  player_name,
+  pre_rating,
+  actual_score,
+  expected_score = round(expected_score, 2),
+  performance_difference = round(
+    performance_difference,
+    2
+  ),
+  stringsAsFactors = FALSE
+)
+
+head(elo_results)
+```
+
+## Five Most Overperforming Players
+
+A positive performance difference means that a player earned more tournament points than the Elo formula predicted. I arranged the results from the largest positive difference to the smallest and selected the first five players.
+
+```{r top-overperformers}
+overperformers <- elo_results[
+  order(
+    elo_results$performance_difference,
+    decreasing = TRUE
+  ),
+]
+
+top_five_overperformers <- head(
+  overperformers,
+  5
+)
+
+knitr::kable(
+  top_five_overperformers,
+  caption = "Five Players Who Most Overperformed"
+)
+```
+
+## Five Most Underperforming Players
+
+A negative performance difference means that a player earned fewer tournament points than the Elo formula predicted. I arranged the results from the most negative difference upward and selected the first five players.
+
+```{r top-underperformers}
+underperformers <- elo_results[
+  order(elo_results$performance_difference),
+]
+
+top_five_underperformers <- head(
+  underperformers,
+  5
+)
+
+knitr::kable(
+  top_five_underperformers,
+  caption = "Five Players Who Most Underperformed"
+)
+```
+## Interpretation
+
+Aditya Bajaj overperformed the most. Based on the ratings of his opponents, he was expected to earn approximately 1.95 points, but he earned 6 points. His actual score was therefore about 4.05 points higher than expected. The other strongest overperformers were Zachary James Houghton, Anvit Rao, Jacob Alexander Lavalley, and Amiyatosh Pwnanandam.
+
+Loren Schwiebert underperformed the most. He was expected to earn approximately 6.28 points but earned 3.5 points, producing a difference of -2.78. George Avery Jones, Jared Ge, Rishi Shetty, and Joshua David Lee were the other four players who performed furthest below their expected scores.
+
+## Validating the Results
+
+I checked that the completed results contained all 64 players and that none of the required calculation columns contained missing values.
+
+```{r validate-results}
+nrow(elo_results)
+
+colSums(
+  is.na(
+    elo_results[
+      c(
+        "pre_rating",
+        "actual_score",
+        "expected_score",
+        "performance_difference"
+      )
+    ]
+  )
+)
+```
+
+## Conclusion
+
+The Elo calculations showed that tournament results did not always match what the players’ ratings predicted. Some lower-rated players performed much better than expected against their opponents, while some higher-rated players earned fewer points than expected.
+
+Aditya Bajaj had the largest positive difference between his actual and expected scores, while Loren Schwiebert had the largest negative difference. This demonstrates how the Elo formula can provide a useful baseline for identifying unusually strong or weak tournament performances.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
